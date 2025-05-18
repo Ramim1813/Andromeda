@@ -12,10 +12,20 @@ head -n 1 "$input_file" | tr -d '\r' | sed 's/;/\t/g' | tr -cd '\11\12\15\40-\17
 
 # Processes each remaining data rows
 tail -n +2 "$input_file" | while IFS= read -r line; do
-    # clean line endings and replacing semicolons and convert float commas to dots and stripping non-ascii
-    cleaned=$(echo "$line" | tr -d '\r' | sed 's/;/\t/g' | sed 's/,/./g' | tr -cd '\11\12\15\40-\176')
+    # Clean line and convert to tabs
+    tab_separated=$(echo "$line" | tr -d '\r' | sed 's/;/\t/g')
+    
+    # Convert commas to dots ONLY in numeric columns (9=Rating Average, 11=Complexity Average)
+    processed=$(echo "$tab_separated" | awk -F'\t' -v OFS='\t' '{
+        gsub(/,/, ".", $9)
+        gsub(/,/, ".", $11)
+        print $0
+    }')
+    
+    # Remove non-ASCII characters
+    cleaned=$(echo "$processed" | tr -cd '\11\12\15\40-\176')
 
-    # handle missing ID (first field is blank)
+    # Handle missing ID (first field is blank)
     first_column=$(echo "$cleaned" | cut -f1)
     if [[ -z "$first_column" ]]; then
         cleaned="${next_id}$(echo "$cleaned" | cut -f2-)"
@@ -24,4 +34,3 @@ tail -n +2 "$input_file" | while IFS= read -r line; do
 
     echo -e "$cleaned"
 done
-

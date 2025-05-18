@@ -1,32 +1,32 @@
 #!/bin/bash
 
-# This script will count the number of empty cells per column in a semicolon separated file.
-
 given_file="$1"
 delimiter_used="$2"
 
-# This block reads the header and splits it into column titles
+# Read header and process titles
 header=$(head -n 1 "$given_file" | tr -d '\r')
 IFS="$delimiter_used" read -ra titles <<< "$header"
 num_columns=${#titles[@]}
 
-# Creates a counter for each column
+# Initialize counters
 declare -a counting_empty_cells
 for (( i=0; i<num_columns; i++ )); do
   counting_empty_cells[i]=0
 done
 
-# Read the data lines without headers
-
-tail -n +2 "$given_file" | while IFS="$delimiter_used" read -ra fields; do
+# Process data lines using temporary file
+tail -n +2 "$given_file" > tmp_data.txt
+while IFS= read -r line; do
+  IFS="$delimiter_used" read -ra fields <<< "$(echo "$line" | tr -d '\r')"
   for (( i=0; i<num_columns; i++ )); do
-    if [[ -z "${fields[i]// }" ]]; then
+    if [[ -z "${fields[i]// }" ]]; then  # Check for empty/whitespace-only field
       ((counting_empty_cells[i]++))
     fi
   done
-done
+done < tmp_data.txt
+rm tmp_data.txt
 
-# Prints the result
+# Print results
 for (( i=0; i<num_columns; i++ )); do
-  echo "${titles[i]//\/}: ${counting_empty_cells[i]}"
+  echo "${titles[i]}: ${counting_empty_cells[i]}"
 done
