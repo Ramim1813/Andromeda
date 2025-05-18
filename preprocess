@@ -1,0 +1,27 @@
+#!/bin/bash
+
+# Storing the input file
+input_file="$1"
+
+# Getting the largest existing ID so that I can generate new IDs starting after that one 
+max_id=$(awk -F';' 'NR>1 && $1 ~ /^[0-9]+$/ { if ($1 > max) max = $1 } END { print max+1 }' "$input_file")
+next_id="$max_id"
+
+# Removing windows style line endings "\r" and replacing semicolons with tabs and removing non-ascii chars
+head -n 1 "$input_file" | tr -d '\r' | sed 's/;/\t/g' | tr -cd '\11\12\15\40-\176'
+
+# Processes each remaining data rows
+tail -n +2 "$input_file" | while IFS= read -r line; do
+    # clean line endings and replacing semicolons and convert float commas to dots and stripping non-ascii
+    cleaned=$(echo "$line" | tr -d '\r' | sed 's/;/\t/g' | sed 's/,/./g' | tr -cd '\11\12\15\40-\176')
+
+    # handle missing ID (first field is blank)
+    first_column=$(echo "$cleaned" | cut -f1)
+    if [[ -z "$first_column" ]]; then
+        cleaned="${next_id}$(echo "$cleaned" | cut -f2-)"
+        ((next_id++))
+    fi
+
+    echo -e "$cleaned"
+done
+
